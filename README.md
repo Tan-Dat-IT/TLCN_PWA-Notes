@@ -42,4 +42,4 @@ Trên **máy chủ triển khai**, chuẩn bị:
 - **PowerShell** (có sẵn trên Windows).
 - *(Tùy chọn)* **Ollama** nếu muốn dùng Trợ lý AI - xem mục 4. Không cài cũng không ảnh hưởng các chức năng còn lại.
 
-Trên **máy người dùng**, chỉ cần Chrome hoặc Edge bản desktop và URL do server cung cấp; không cài Node.js, SQL Server hay mã nguồn. Điện thoại và trình duyệt mobile nằm ngoài phạm vi hỗ trợ.
+Trên **máy người dùng**, chỉ cần Chrome hoặc Edge bản desktop và URL do server cung cấp; không cài Node.js, SQL Server hay mã nguồn. Điện thoại và trình duyệt mobile nằm ngoài phạm vi hỗ trợ.# note
