@@ -101,7 +101,11 @@ GO
 CREATE INDEX IX_Users_ManagedByAdminId ON Users(ManagedByAdminId) WHERE ManagedByAdminId IS NOT NULL;
 GO
 
+<<<<<<< HEAD
 -- Nhật ký hành động quản trị - chỉ root xem được (mục 23.6). Snapshot sẵn
+=======
+-- Nhật ký hành động quản trị - chỉ root xem được. Snapshot sẵn
+>>>>>>> 9a87a8ab6148f883389c49ad230ab49ac92bf3d8
 -- Username (không chỉ Id) để log vẫn đọc được rõ ràng ngay cả khi tài khoản
 -- liên quan sau này đổi tên hiển thị hoặc bị khóa.
 CREATE TABLE AdminAuditLog (
