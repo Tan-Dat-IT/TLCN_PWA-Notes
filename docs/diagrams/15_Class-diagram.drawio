@@ -1,0 +1,93 @@
+<mxfile host="Electron">
+  <diagram id="70f6d8e62fc1" name="Class Diagram · Frontend">
+    <mxGraphModel dx="2850" dy="1450" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1650" pageHeight="1040" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#EAF0F5;strokeColor=#64748B;fontColor=#172033;fontSize=22;align=center;verticalAlign=middle;fillColor=none;strokeColor=none;fontStyle=1;align=left;" value="15 · CLASS DIAGRAM — KIẾN TRÚC FRONTEND PWA" vertex="1">
+          <mxGeometry height="45" width="1340" x="45" y="24" as="geometry" />
+        </mxCell>
+        <mxCell id="n3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#EAF2FF;strokeColor=#4D72A4;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="App / React components&lt;br&gt;──────────────────&lt;br&gt;Giao diện&lt;br&gt;Login · NoteForm · NoteList&lt;br&gt;SyncBar · ConflictPanel&lt;br&gt;AdminPanel · StatsCharts" vertex="1">
+          <mxGeometry height="165" width="370" x="40" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="n4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#E9F6F1;strokeColor=#367C67;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="useAuth&lt;br&gt;──────────────────&lt;br&gt;Trạng thái phiên đăng nhập&lt;br&gt;Đăng nhập / đăng xuất&lt;br&gt;User profile / token" vertex="1">
+          <mxGeometry height="150" width="300" x="505" y="69" as="geometry" />
+        </mxCell>
+        <mxCell id="n5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#E9F6F1;strokeColor=#367C67;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="useNotes&lt;br&gt;──────────────────&lt;br&gt;Trạng thái ghi chú phản ứng&lt;br&gt;addNote() · updateNote()&lt;br&gt;Theo dõi qua useLiveQuery()" vertex="1">
+          <mxGeometry height="170" width="300" x="505" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="n6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#E9F6F1;strokeColor=#367C67;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="useSync&lt;br&gt;──────────────────&lt;br&gt;Đồng bộ hai chiều&lt;br&gt;syncNow() · tự retry&lt;br&gt;Xử lý applied/conflict/rejected" vertex="1">
+          <mxGeometry height="175" width="300" x="505" y="495" as="geometry" />
+        </mxCell>
+        <mxCell id="n7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#FFF5E4;strokeColor=#BD8744;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="db/auth.ts&lt;br&gt;──────────────────&lt;br&gt;Lưu/đọc xác thực cục bộ&lt;br&gt;JWT + profile trong localStorage" vertex="1">
+          <mxGeometry height="150" width="340" x="930" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="n8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#FFF5E4;strokeColor=#BD8744;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="database.ts · Dexie&lt;br&gt;──────────────────&lt;br&gt;NotesDB (v4)&lt;br&gt;notes · meta&lt;br&gt;IndexedDB storage + indexes" vertex="1">
+          <mxGeometry height="175" width="340" x="930" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="n9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#FFF5E4;strokeColor=#BD8744;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="sync.ts&lt;br&gt;──────────────────&lt;br&gt;Đẩy pending + lấy delta&lt;br&gt;Version / baseVersion&lt;br&gt;cập nhật sync cursor" vertex="1">
+          <mxGeometry height="175" width="340" x="930" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="n10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#FFF5E4;strokeColor=#BD8744;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="api.ts / admin.ts / ai.ts / push.ts&lt;br&gt;──────────────────&lt;br&gt;HTTP client&lt;br&gt;fetch /api + Bearer JWT" vertex="1">
+          <mxGeometry height="140" width="340" x="930" y="725" as="geometry" />
+        </mxCell>
+        <mxCell id="n11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#F2EDFA;strokeColor=#8871B5;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="Browser platform&lt;br&gt;──────────────────&lt;br&gt;IndexedDB · localStorage&lt;br&gt;Service Worker cache&lt;br&gt;PushManager / Notification" vertex="1">
+          <mxGeometry height="175" width="250" x="1355" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="n12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#EAF0F5;strokeColor=#64748B;fontColor=#172033;fontSize=15;align=center;verticalAlign=middle;align=center;" value="Backend API&lt;br&gt;──────────────────&lt;br&gt;Express / SQL Server&lt;br&gt;Ollama / Push / SMTP" vertex="1">
+          <mxGeometry height="145" width="250" x="1355" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="n13" edge="1" parent="1" source="n3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n4" value="sử dụng">
+          <mxGeometry relative="1" x="-0.2979" as="geometry">
+            <Array as="points">
+              <mxPoint x="457.5" y="190" />
+              <mxPoint x="457.5" y="144" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n14" edge="1" parent="1" source="n3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n5" value="sử dụng">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="655" y="240" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n15" edge="1" parent="1" source="n3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n6" value="trạng thái sync">
+          <mxGeometry relative="1" x="-0.1528" as="geometry">
+            <Array as="points">
+              <mxPoint x="450" y="260" />
+              <mxPoint x="450" y="582.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n16" edge="1" parent="1" source="n4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n7" value="đọc/ghi">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n17" edge="1" parent="1" source="n5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n8" value="CRUD local">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n18" edge="1" parent="1" source="n6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n9" value="điều phối">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n19" edge="1" parent="1" source="n9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n8" value="pending / cursor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n20" edge="1" parent="1" source="n9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n10" value="gọi API">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n21" edge="1" parent="1" source="n10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n12" value="HTTPS /api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n22" edge="1" parent="1" source="n8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n11" value="IndexedDB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n23" edge="1" parent="1" source="n7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.7;endArrow=block;endFill=1;" target="n11" value="localStorage">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n24" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;strokeWidth=1.5;fontFamily=Arial;fillColor=#EAF0F5;strokeColor=#64748B;fontColor=#172033;fontSize=14;align=center;verticalAlign=middle;" value="Sơ đồ biểu diễn quan hệ phụ thuộc giữa module/hook (không giả định mỗi module là một class OOP).&lt;br&gt;Phù hợp kiến trúc React Hooks + Dexie trong tài liệu 02-KIEN-TRUC-FRONTEND-PWA.md." vertex="1">
+          <mxGeometry height="95" width="1215" x="70" y="895" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
