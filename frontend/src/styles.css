@@ -47,3 +47,134 @@ p { margin: 8px 0 0; color: #526275; line-height: 1.6; }
   .app { margin: 24px auto; }
   .note-form, .note-item { padding: 16px; }
 }
+
+
+/* Bộ lọc và thời gian ghi chú: tuần 5. */
+.search-box {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:white;
+  border:1px solid #e1e7ed;
+  border-radius:8px;
+  padding:8px 12px;
+  max-width:350px;
+  width:100%;
+  color:#8b9aa8;
+}
+
+.search-box span {
+  font-size:22px;
+  line-height:1;
+}
+
+.search-box input {
+  background:transparent;
+  width:100%;
+  min-width:0;
+  border:0;
+  font-size:15px;
+  padding:3px;
+}
+
+.tag-filter {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  margin:18px 0;
+}
+
+.content-type-filter {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  margin:18px 0 0;
+}
+
+.content-type-filter>span {
+  margin-right:5px;
+  color:#97a1ad;
+  font-size:12px;
+  letter-spacing:1px;
+}
+
+.content-type-filter button {
+  padding:7px 13px;
+  border:1px solid #dbe3e8;
+  border-radius:7px;
+  background:#fff;
+  color:#697a73;
+  font-size:14px;
+}
+
+.content-type-filter button:hover,
+.content-type-filter button.active {
+  border-color:#bcd5c7;
+  background:#eaf4ee;
+  color:#276c57;
+}
+
+.content-type-filter small {
+  flex-basis:100%;
+  color:#87928c;
+  font-size:12px;
+}
+
+.tag-filter>span {
+  font-size:12px;
+  color:#97a1ad;
+  letter-spacing:1px;
+  margin-right:5px;
+}
+
+.tag-filter button {
+  background:#fff;
+  border:1px solid #e1e7ed;
+  color:#7a8897;
+  padding:6px 11px;
+  font-size:14px;
+  font-weight:500;
+  border-radius:6px;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+
+.tag-filter button.active {
+  color:#276c57;
+  background:#eaf4ee;
+  border-color:#cedfd3;
+}
+
+.tag-filter button:hover {
+  background:#eaf4ee;
+  color:#276c57;
+}
+
+.kind-field { display: flex; align-items: center; gap: 12px; font-size: 15px; color: #50695b; }
+.kind-field select { font: inherit; border: 1px solid #dce6df; border-radius: 7px; padding: 9px 12px; background: #f8fbf9; color: #243347; }
+.schedule-fields { border: 1px solid #e0e9e3; border-radius: 9px; padding: 12px; }
+.schedule-fields summary, .note-history summary { cursor: pointer; color: #426952; font-size: 14px; }
+.schedule-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.schedule-grid label { font-size: 14px; color: #64776b; min-width: 0; }
+.schedule-grid input { display: block; margin-top: 6px; min-width: 0; }
+.schedule-fields p { color: #7b887e; font-size: 13px; margin-top: 10px; line-height: 1.6; }
+.note-kind { color: #567666; font-weight: 600; }
+.overdue-status { color: #a5382c; background: #ffebe6; padding: 4px 7px; border-radius: 5px; }
+.note-dates { font-size: 14px; margin: 16px 0 0; }
+.note-dates:empty { display: none; }
+.note-dates div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-top: 6px; }
+.note-dates dt { color: #7a867d; }
+.note-dates dd { margin: 0; color: #43594b; }
+.note-history { margin-top: 12px; }
+.note-history p { font-size: 13px; }
+@media (max-width: 600px) { .schedule-grid { grid-template-columns: 1fr; } }
+
+.view-filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.view-filter button { background: #fff; color: #334c43; border-color: #cedbd5; }
+.view-filter button.active { background: #246e62; color: #fff; }
+.nav-count { display: inline-block; margin-left: 6px; font-weight: 700; }
+.list-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.note-form select { font: inherit; padding: 10px 12px; border: 1px solid #cedbd5; border-radius: 6px; background: #fff; color: inherit; }
+.task-status { color: #246e62; font-size: 14px; }
