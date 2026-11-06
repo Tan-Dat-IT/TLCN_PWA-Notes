@@ -38,10 +38,6 @@ export function createApp(store, {
     res.set('Referrer-Policy', 'strict-origin-when-cross-origin')
     next()
   })
-  // 0.0.0.0/[::] chỉ là địa chỉ bind của server, không phải origin mà trình
-  // duyệt client nên gửi. LAN preview đi qua Vite proxy cùng origin; nếu cố
-  // ý gọi API khác origin thì khai báo IP/hostname thật trong ALLOWED_ORIGINS.
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173,http://[::1]:5173,http://[::1]:4173').split(',').map(value => value.trim()).filter(Boolean)
   app.use(cors({ origin: allowedOrigins, allowedHeaders: ['Content-Type', 'X-Sync-Version', 'Authorization'] }))
   app.use(express.json({ limit: '2mb' }))
   app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
