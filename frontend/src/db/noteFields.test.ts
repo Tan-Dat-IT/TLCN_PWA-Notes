@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validTime, validSchedule, isCompletedLate, isOverdue, taskDisplayStatus, toDateInput, fromDateInput } from './noteFields'
+import { validTime, validSchedule, isCompletedLate, isOverdue, getTaskStatus, taskDisplayStatus, toDateInput, fromDateInput } from './noteFields'
 import type { Note } from './database'
 
 function task(overrides: Partial<Note> = {}): Note {
@@ -63,6 +63,22 @@ describe('isOverdue', () => {
   })
   it('false nếu không có dueAt', () => {
     expect(isOverdue(task({ dueAt: null }), now)).toBe(false)
+  })
+})
+
+describe('workflow status', () => {
+  it('legacy checkbox được đọc thành todo/done, ghi chú không có workflow', () => {
+    expect(getTaskStatus(task())).toBe('todo')
+    expect(getTaskStatus(task({ done: true }))).toBe('done')
+    expect(getTaskStatus(task({ kind: 'note' }))).toBeNull()
+  })
+  it('status là nguồn chính, deadline không tự chuyển cột', () => {
+    const doing = task({ status: 'doing', dueAt: 10 })
+    expect(getTaskStatus(doing)).toBe('doing')
+    expect(isOverdue(doing, 20)).toBe(true)
+    expect(getTaskStatus(task({ status: 'done', done: false }))).toBe('done')
+    expect(isOverdue(task({ status: 'done', done: false, dueAt: 10 }), 20)).toBe(false)
+    expect(isCompletedLate(task({ status: 'done', done: false, dueAt: 10, completedAt: 20 }))).toBe(true)
   })
 })
 

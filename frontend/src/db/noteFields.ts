@@ -1,7 +1,19 @@
-import type { Note } from './database'
+import type { Note, TaskStatus } from './database'
 
-export type NoteInput = Pick<Note, 'title' | 'content' | 'tag' | 'kind' | 'startAt' | 'dueAt'>
-type TaskStatusFields = Pick<Note, 'kind' | 'done' | 'deleted' | 'dueAt' | 'completedAt'>
+export type NoteInput = Pick<Note, 'title' | 'content' | 'tag' | 'kind' | 'startAt' | 'dueAt' | 'status'>
+type TaskStatusFields = Pick<Note, 'kind' | 'status' | 'done' | 'deleted' | 'dueAt' | 'completedAt'>
+export const TASK_WORKFLOW_LABELS: Record<TaskStatus, string> = {
+  todo: 'Cần làm', doing: 'Đang làm', done: 'Hoàn thành'
+}
+
+export function isTaskStatus(value: unknown): value is TaskStatus {
+  return value === 'todo' || value === 'doing' || value === 'done'
+}
+
+export function getTaskStatus(note: Pick<Note, 'kind' | 'status' | 'done'>): TaskStatus | null {
+  if (note.kind !== 'task') return null
+  return isTaskStatus(note.status) ? note.status : note.done ? 'done' : 'todo'
+}
 export type TaskDisplayStatus = 'in_progress' | 'overdue' | 'completed' | 'completed_late'
 
 export const TASK_STATUS_LABELS: Record<TaskDisplayStatus, string> = {
@@ -21,18 +33,18 @@ export function validSchedule(note: Pick<Note, 'kind' | 'startAt' | 'dueAt'>) {
 }
 
 export function isOverdue(note: TaskStatusFields, now: number) {
-  return note.kind === 'task' && !note.done && note.deleted === 0 && note.dueAt !== null && note.dueAt < now
+  return note.kind === 'task' && getTaskStatus(note) !== 'done' && note.deleted === 0 && note.dueAt !== null && note.dueAt < now
 }
 
 // Trạng thái lịch sử: công việc đã xong nhưng thời điểm hoàn thành thực tế
 // muộn hơn deadline. Khác với isOverdue: không phụ thuộc thời điểm hiện tại.
 export function isCompletedLate(note: TaskStatusFields) {
-  return note.kind === 'task' && note.done && note.dueAt !== null && note.completedAt !== null && note.completedAt > note.dueAt
+  return note.kind === 'task' && getTaskStatus(note) === 'done' && note.dueAt !== null && note.completedAt !== null && note.completedAt > note.dueAt
 }
 
 /** Trạng thái hiển thị loại trừ nhau, chỉ dùng cho công việc chưa xóa. */
 export function taskDisplayStatus(note: TaskStatusFields, now: number): TaskDisplayStatus {
-  if (note.done) return isCompletedLate(note) ? 'completed_late' : 'completed'
+  if (getTaskStatus(note) === 'done') return isCompletedLate(note) ? 'completed_late' : 'completed'
   return isOverdue(note, now) ? 'overdue' : 'in_progress'
 }
 
