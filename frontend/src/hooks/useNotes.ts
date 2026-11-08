@@ -1,90 +1,123 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, type Note, type NoteInput } from '../db/database'
-import { isOverdue, validSchedule } from '../db/noteFields'
+import { db, type Note, type TaskStatus } from '../db/database'
+import { getTaskStatus, isTaskStatus, isOverdue, validSchedule, type NoteInput } from '../db/noteFields'
+import { fromServer } from '../db/sync'
+import { buildWorkspaceSummary } from '../lib/stats'
 
-export type NoteView = 'active' | 'todo' | 'done' | 'overdue' | 'trash'
+export type NoteView = 'active' | 'todo' | 'doing' | 'done' | 'overdue' | 'pending' | 'conflict' | 'trash'
 export type NoteKindFilter = 'all' | Note['kind']
-const NOTE_VIEWS: NoteView[] = ['active', 'todo', 'done', 'overdue', 'trash']
-
-function normalizeInput(input: NoteInput): NoteInput {
-  const title = input.title.trim()
-  const content = input.content.trim()
-  const tag = input.tag.trim() || 'chung'
-  if (!title || title.length > 255 || content.length > 100000 || tag.length > 100 || !validSchedule(input)) {
-    throw new Error('Tiêu đề, nội dung hoặc thời gian không hợp lệ.')
-  }
-  return { ...input, title, content, tag }
-}
-
-export function useNotes(filterTag: string | null = null, view: NoteView = 'active', kindFilter: NoteKindFilter = 'all') {
+export type ConflictChoice = 'mine' | 'server' | 'both'
+const COPY_SUFFIX = ' (bản sao xung đột)'
+export function useNotes(filterTag: string | null, view: NoteView = 'active', kindFilter: NoteKindFilter = 'all') {
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const refresh = () => setNow(Date.now())
     const timer = setInterval(refresh, 30000)
     window.addEventListener('focus', refresh)
-    return () => { clearInterval(timer); window.removeEventListener('focus', refresh) }
+    const visible = () => { if (document.visibilityState === 'visible') refresh() }
+    document.addEventListener('visibilitychange', visible)
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible) }
   }, [])
-
-  const result = useLiveQuery(async () => {
-    try {
-      const notes = await db.notes.orderBy('updatedAt').reverse().toArray()
-      return { notes, error: '' }
-    } catch {
-      return { notes: [] as Note[], error: 'Không đọc được dữ liệu trên thiết bị. Hãy thử tải lại trang.' }
-    }
-  }, [])
-  const all = result?.notes ?? []
+  const all = useLiveQuery(() => db.notes.orderBy('updatedAt').reverse().toArray(), [])
   const matches = (n: Note, v: NoteView) => v === 'trash' ? n.deleted === 1
+    : v === 'pending' ? n.synced === 0 && !n.conflict
+    : v === 'conflict' ? !!n.conflict
     : v === 'overdue' ? isOverdue(n, now)
-    : n.deleted === 0 && (v === 'active' || (n.kind === 'task' && (v === 'done' ? n.done : !n.done && !isOverdue(n, now))))
-  const selectedByKind = all.filter(n => matches(n, view) && (kindFilter === 'all' || n.kind === kindFilter))
+    : n.deleted === 0 && (v === 'active' || (n.kind === 'task' && getTaskStatus(n) === v))
+  const selected = (all ?? []).filter(n => matches(n, view))
+  // Loại nội dung được áp dụng trước tag để thanh tag chỉ đưa ra các lựa chọn
+  // thực sự có kết quả trong Ghi chú/Công việc đang chọn.
+  const selectedByKind = selected.filter(n => kindFilter === 'all' || n.kind === kindFilter)
   const notes = selectedByKind.filter(n => !filterTag || n.tag === filterTag)
   const allTags = Array.from(new Set(selectedByKind.map(n => n.tag))).sort()
-  const counts = Object.fromEntries(NOTE_VIEWS.map(v => [v, 0])) as Record<NoteView, number>
-  for (const note of all) {
-    if (note.deleted === 1) counts.trash++
-    else {
-      counts.active++
-      if (note.kind === 'task') {
-        if (note.done) counts.done++
-        else if (isOverdue(note, now)) counts.overdue++
-        else counts.todo++
-      }
+  // Đếm một lượt thay vì lọc lại toàn bộ mảng cho từng view. Xung đột không
+  // nằm trong "Chờ đồng bộ" vì nó cần người dùng chọn bản trước, không thể
+  // tự động gửi như các pending note thông thường.
+  const summary = buildWorkspaceSummary(all ?? [], now)
+  const { counts } = summary
+
+  function validateInput(input: NoteInput) {
+    if (!input.title.trim() || input.title.length > 255 || input.content.length > 100000 || input.tag.length > 100 || !validSchedule(input) ||
+        (input.status != null && !isTaskStatus(input.status))) {
+      throw new Error('Tiêu đề hoặc thời gian không hợp lệ')
     }
   }
 
   async function addNote(input: NoteInput) {
+    validateInput(input)
     const timestamp = Date.now()
-    await db.notes.add({
-      ...normalizeInput(input), createdAt: timestamp, completedAt: null, deletedAt: null,
-      done: false, updatedAt: timestamp, synced: 0, deleted: 0
+    const status = input.kind === 'task' ? input.status ?? 'todo' : null
+    await db.notes.add({ ...input, tag: input.tag || 'chung', serverId: crypto.randomUUID(),
+      status, createdAt: timestamp, completedAt: status === 'done' ? timestamp : null, deletedAt: null,
+      done: status === 'done', updatedAt: timestamp, synced: 0, deleted: 0, baseVersion: null, conflict: null })
+  }
+
+  // Xử lý xung đột đồng bộ (server báo thiết bị khác đã sửa trước):
+  //  - mine:   giữ bản trên thiết bị, ghi đè lên đúng phiên bản server vừa thấy
+  //            (server lại đổi tiếp trong lúc đó thì sẽ báo xung đột lần nữa).
+  //  - server: bỏ thay đổi trên thiết bị, dùng bản trên server.
+  //  - both:   ghi chú này nhận bản server, nội dung trên thiết bị được tách
+  //            thành 1 ghi chú MỚI (ServerId mới) - không mất bên nào.
+  async function resolveConflict(id: number, choice: ConflictChoice) {
+    await db.transaction('rw', db.notes, async () => {
+      const current = await db.notes.get(id)
+      const server = current?.conflict
+      if (!current || !server) return
+      const timestamp = Date.now()
+      if (choice === 'mine') {
+        await db.notes.put({ ...current, conflict: null, baseVersion: server.version, synced: 0,
+          updatedAt: Math.max(timestamp, current.updatedAt + 1, server.updatedAt + 1) })
+        return
+      }
+      await db.notes.put({ ...current, ...fromServer(server) })
+      if (choice === 'both') {
+        const { id: _id, conflict: _conflict, ...mine } = current
+        await db.notes.add({ ...mine, serverId: crypto.randomUUID(), baseVersion: null, conflict: null, synced: 0,
+          title: current.title.slice(0, 255 - COPY_SUFFIX.length) + COPY_SUFFIX,
+          createdAt: timestamp, updatedAt: timestamp })
+      }
     })
   }
 
   async function updateNote(id: number, changes: Partial<NoteInput & Pick<Note, 'done' | 'deleted'>>) {
     await db.transaction('rw', db.notes, async () => {
       const current = await db.notes.get(id)
-      if (!current) throw new Error('Không tìm thấy ghi chú.')
-      const next = { ...current, ...changes, ...normalizeInput({ ...current, ...changes }) }
+      if (!current) throw new Error('Không tìm thấy ghi chú')
+      const next = { ...current, ...changes }
+      validateInput(next)
       const timestamp = Date.now()
-      if (next.kind === 'note') next.done = false
-      if (next.done !== current.done) next.completedAt = next.done ? timestamp : null
+      if (next.kind === 'note') next.status = null
+      else if (changes.status !== undefined && changes.status !== null) next.status = changes.status
+      else if (changes.done !== undefined) next.status = changes.done ? 'done' : 'todo'
+      else next.status = current.kind === 'task' ? getTaskStatus(current) : 'todo'
+      next.done = next.status === 'done'
+      if (next.done !== (getTaskStatus(current) === 'done')) next.completedAt = next.done ? timestamp : null
+      if (!next.done) next.completedAt = null
       if (next.deleted !== current.deleted) next.deletedAt = next.deleted ? timestamp : null
-      await db.notes.put({ ...next, updatedAt: Math.max(timestamp, current.updatedAt + 1), synced: 0 })
+      await db.notes.put({ ...next, tag: next.tag || 'chung', updatedAt: Math.max(timestamp, current.updatedAt + 1), synced: 0 })
     })
   }
 
-  async function toggleDone(id: number) {
+  async function toggleDone(note: Note) {
+    if (note.id == null) return
     await db.transaction('rw', db.notes, async () => {
-      const current = await db.notes.get(id)
-      if (current?.kind === 'task' && !current.deleted) await updateNote(id, { done: !current.done })
+      const current = await db.notes.get(note.id!)
+      if (current?.kind === 'task' && !current.deleted) await updateNote(note.id!, { done: getTaskStatus(current) !== 'done' })
     })
   }
+
+  async function moveTask(id: number, status: TaskStatus) {
+    if (!isTaskStatus(status)) throw new Error('Trạng thái công việc không hợp lệ')
+    await db.transaction('rw', db.notes, async () => {
+      const current = await db.notes.get(id)
+      if (!current || current.kind !== 'task' || current.deleted) throw new Error('Không tìm thấy công việc đang hoạt động')
+      if (getTaskStatus(current) === status) return
+      await updateNote(id, { status })
+    })
+  }
+
   async function deleteNote(id: number) { await updateNote(id, { deleted: 1 }) }
   async function restoreNote(id: number) { await updateNote(id, { deleted: 0 }) }
-  return {
-    notes, allTags, counts, now, loading: result === undefined, error: result?.error ?? '',
-    addNote, updateNote, toggleDone, deleteNote, restoreNote
-  }
+  return { notes, allNotes: all ?? [], isLoading: all === undefined, allTags, counts, summary, now, addNote, updateNote, moveTask, toggleDone, deleteNote, restoreNote, resolveConflict }
 }
