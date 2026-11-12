@@ -17,7 +17,7 @@ import { validSubscription, sendToUser } from './push.js'
 import { fileURLToPath } from 'node:url'
 
 const RESET_TOKEN_TTL_MS = (Number(process.env.RESET_TOKEN_TTL_MIN) || 30) * 60 * 1000
-export const SYNC_VERSION = 3
+export const SYNC_VERSION = 4
 const NOTES_PAGE_SIZE = 500
 // Các lựa chọn "nhắc trước hạn" (phút) - khớp REMINDER_LEAD_OPTIONS ở frontend.
 export const REMINDER_LEAD_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 1440]
