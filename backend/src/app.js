@@ -17,7 +17,7 @@ import { validSubscription, sendToUser } from './push.js'
 import { fileURLToPath } from 'node:url'
 
 const RESET_TOKEN_TTL_MS = (Number(process.env.RESET_TOKEN_TTL_MIN) || 30) * 60 * 1000
-export const SYNC_VERSION = 3
+export const SYNC_VERSION = 4
 const NOTES_PAGE_SIZE = 500
 // Các lựa chọn "nhắc trước hạn" (phút) - khớp REMINDER_LEAD_OPTIONS ở frontend.
 export const REMINDER_LEAD_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 1440]
@@ -38,7 +38,10 @@ export function createApp(store, {
     res.set('Referrer-Policy', 'strict-origin-when-cross-origin')
     next()
   })
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://0.0.0.0:4173,http://[::1]:5173,http://[::]:4173').split(',').map(value => value.trim()).filter(Boolean)
+  // 0.0.0.0/[::] chỉ là địa chỉ bind của server, không phải origin mà trình
+  // duyệt client nên gửi. LAN preview đi qua Vite proxy cùng origin; nếu cố
+  // ý gọi API khác origin thì khai báo IP/hostname thật trong ALLOWED_ORIGINS.
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://127.0.0.1:4173,http://[::1]:5173,http://[::1]:4173').split(',').map(value => value.trim()).filter(Boolean)
   app.use(cors({ origin: allowedOrigins, allowedHeaders: ['Content-Type', 'X-Sync-Version', 'Authorization'] }))
   app.use(express.json({ limit: '2mb' }))
   app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next() })
