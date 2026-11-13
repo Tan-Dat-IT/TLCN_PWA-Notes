@@ -39,9 +39,15 @@ export async function request(url: string, options?: RequestInit) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 15000)
   const token = getToken()
+  const checkSession = () => {
+    if (getToken() !== token) throw new SyncFailure('Phiên đăng nhập đã thay đổi; bỏ qua phản hồi cũ.', false)
+  }
   const headers = { ...(options?.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }
   try {
     const response = await fetch(url, { ...options, headers, signal: controller.signal, cache: 'no-store' })
+    // Response của phiên cũ không được xóa token mới khi trả 401, hoặc trả
+    // dữ liệu của tài khoản trước cho caller đang dùng tài khoản mới.
+    checkSession()
     if (!response.ok) {
       if (response.status === 401) {
         clearToken()
@@ -66,8 +72,11 @@ export async function request(url: string, options?: RequestInit) {
     }
     const contentType = response.headers.get('content-type') || ''
     if (!contentType.includes('application/json')) throw new SyncFailure('Địa chỉ API đang trả trang HTML thay vì dữ liệu. Kiểm tra VITE_API_URL hoặc proxy và khởi động lại server.', false)
-    try { return await response.json() }
+    let body
+    try { body = await response.json() }
     catch { throw new SyncFailure('Phản hồi API không phải JSON hợp lệ. Kiểm tra phiên bản backend.', false) }
+    checkSession()
+    return body
   } catch (error) {
     if (error instanceof SyncFailure) throw error
     if (controller.signal.aborted) throw new SyncFailure('API chưa phản hồi sau 15 giây. Dữ liệu vẫn ở thiết bị; ứng dụng sẽ tự thử lại.')
