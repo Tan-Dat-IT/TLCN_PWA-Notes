@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/database'
+import { db, getLocalDataRevision } from '../db/database'
 import { synchronize } from '../db/sync'
-import { SyncFailure } from '../db/api'
+import { getToken, SyncFailure } from '../db/api'
 
 export type SyncStatus = 'offline' | 'pending' | 'syncing' | 'synced' | 'conflict' | 'error'
 
@@ -19,17 +19,25 @@ export function useSync(enabled = true) {
     // dùng bằng thông báo lỗi trong khi họ còn đang ở màn hình đăng nhập.
     if (!enabled) return
     if (!navigator.onLine) { setStatus('offline'); return }
+    const token = getToken()
+    const revision = getLocalDataRevision()
+    const isCurrentSession = () => getToken() === token && getLocalDataRevision() === revision
     setStatus('syncing')
     try {
       await synchronize()
-      retryable.current = true
-      setErrorMessage('')
+      if (!isCurrentSession()) return
       // Ghi chú đang xung đột chờ người dùng chọn, không tự gửi lại được - tách
       // riêng khỏi "chờ đồng bộ" để vòng thử lại 3 giây không gọi server vô ích.
       const unsynced = await db.notes.where('synced').equals(0).toArray()
+      if (!isCurrentSession()) return
+      retryable.current = true
+      setErrorMessage('')
       const conflicts = unsynced.filter(n => n.conflict).length
       setStatus(!navigator.onLine ? 'offline' : unsynced.length > conflicts ? 'pending' : conflicts ? 'conflict' : 'synced')
     } catch (error) {
+      // Lượt cũ hoàn tất sau khi đăng xuất/đăng nhập không được đổi trạng
+      // thái hoặc tắt cơ chế thử lại của tài khoản đang sử dụng.
+      if (!isCurrentSession()) return
       console.error('Sync error:', error)
       retryable.current = !(error instanceof SyncFailure) || error.retryable
       setErrorMessage(error instanceof SyncFailure ? error.message : 'Không xử lý được dữ liệu trên thiết bị. Kiểm tra quyền lưu trữ và dung lượng trình duyệt.')

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { validRemote, sameContent, synchronize, type RemoteNote } from './sync'
 import { db, clearLocalData, SYNC_CURSOR_KEY, type Note } from './database'
-import { API_URL } from './api'
+import { API_URL, clearToken, setToken } from './api'
 import { useNotes } from '../hooks/useNotes'
 
 function remote(overrides: Partial<RemoteNote> = {}): RemoteNote {
@@ -116,6 +116,7 @@ class FakeServer {
 
 let server: FakeServer
 beforeEach(async () => {
+  clearToken()
   await clearLocalData()
   server = new FakeServer()
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
@@ -254,6 +255,25 @@ describe('synchronize (giao thức v4)', () => {
     expect(server.rows.get(note.serverId!)?.title).toBe('v2 sửa trong lúc gửi')
   })
 
+  it('mất mạng giữ thay đổi và con trỏ, có mạng lại gửi tiếp mà không tự xung đột', async () => {
+    const note = await addLocal({ title: 'Đã lên server' })
+    await synchronize()
+    const previousCursor = await cursor()
+    await edit(note.id!, { title: 'Sửa khi offline' })
+    const workingFetch = globalThis.fetch
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    await expect(synchronize()).rejects.toMatchObject({ retryable: true })
+    expect(await db.notes.get(note.id!)).toMatchObject({ title: 'Sửa khi offline', synced: 0, baseVersion: 1, conflict: null })
+    expect(await cursor()).toBe(previousCursor)
+    expect(server.rows.get(note.serverId!)?.title).toBe('Đã lên server')
+
+    vi.stubGlobal('fetch', workingFetch)
+    await synchronize()
+    expect(await db.notes.get(note.id!)).toMatchObject({ title: 'Sửa khi offline', synced: 1, baseVersion: 2, conflict: null })
+    expect(server.rows.get(note.serverId!)?.title).toBe('Sửa khi offline')
+  })
+
   it('ghi chú mới đã lên server nhưng mất phản hồi, sau đó sửa tiếp: không tự xung đột với chính mình', async () => {
     await db.meta.put({ key: SYNC_CURSOR_KEY, value: '0' }) // thiết bị đã từng đồng bộ -> gửi trước, tải sau
     const note = await addLocal({ title: 'bản 1' })
@@ -328,6 +348,63 @@ describe('synchronize (giao thức v4)', () => {
     await clearLocalData()
     expect(await cursor()).toBeUndefined()
     expect(await db.notes.count()).toBe(0)
+  })
+
+  it('không khôi phục ghi chú hoặc con trỏ từ response về sau khi xóa cache đăng xuất', async () => {
+    server.write({ serverId: 'old-account', title: 'Riêng tư' })
+    const handle = server.handle.bind(server)
+    vi.spyOn(server, 'handle').mockImplementation(async (url, init) => {
+      const body = await handle(url, init)
+      if (url.includes('?since=')) await clearLocalData()
+      return body
+    })
+
+    await expect(synchronize()).rejects.toThrow(/Phiên đăng nhập đã thay đổi/)
+    expect(await db.notes.count()).toBe(0)
+    expect(await cursor()).toBeUndefined()
+  })
+
+  it('dừng các lô cũ khi đổi tài khoản giữa lúc gửi, không gửi ghi chú A bằng token B', async () => {
+    setToken('tok-a')
+    await db.meta.put({ key: SYNC_CURSOR_KEY, value: '0' })
+    for (let i = 0; i < 4; i++) await addLocal({ title: `Của A ${i}` })
+    server.beforeSyncResponse = async () => {
+      await clearLocalData()
+      setToken('tok-b')
+      await addLocal({ title: 'Của B' })
+    }
+
+    await expect(synchronize()).rejects.toThrow(/Phiên đăng nhập đã thay đổi/)
+    expect(server.requests.filter(r => r === 'POST /sync')).toHaveLength(1)
+    expect((await db.notes.toArray()).map(n => n.title)).toEqual(['Của B'])
+    expect(await cursor()).toBeUndefined()
+  })
+
+  it('phiên mới có lượt đồng bộ riêng khi lượt cũ chưa trả phản hồi', async () => {
+    setToken('tok-a')
+    let respond!: (response: unknown) => void
+    const fetchSpy = vi.fn()
+      .mockImplementationOnce(() => new Promise(resolve => { respond = resolve }))
+      .mockImplementation(async (url: string, init?: RequestInit) => ({
+        ok: true, status: 200, headers: { get: () => 'application/json' },
+        json: async () => server.handle(url, init)
+      }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const oldSync = synchronize()
+    const oldRejected = expect(oldSync).rejects.toThrow(/Phiên đăng nhập đã thay đổi/)
+
+    await clearLocalData()
+    setToken('tok-b')
+    const newSync = synchronize()
+    const sharedPromise = newSync === oldSync
+    // Giải phóng request cũ trước các assertion để test không để promise treo.
+    respond({ ok: true, status: 200, headers: { get: () => 'application/json' }, json: async () => ({ version: 4 }) })
+
+    await oldRejected
+    await newSync
+    expect(sharedPromise).toBe(false)
+    expect(await cursor()).toBe('0')
+    expect(fetchSpy.mock.calls.some(([, init]) => init?.headers.Authorization === 'Bearer tok-b')).toBe(true)
   })
 
   it('từ chối backend khác phiên bản giao thức', async () => {

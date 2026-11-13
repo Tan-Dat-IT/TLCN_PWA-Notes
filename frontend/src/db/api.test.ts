@@ -73,3 +73,32 @@ describe('request() xử lý 401', () => {
     }
   })
 })
+
+describe('request() khi đổi phiên đăng nhập', () => {
+  beforeEach(() => {
+    setToken('tok-cu')
+    vi.unstubAllGlobals()
+  })
+
+  it.each([200, 401])('bỏ phản hồi HTTP %i của phiên cũ và giữ token mới', async status => {
+    let respond!: (response: unknown) => void
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(resolve => { respond = resolve })))
+    const pending = request('http://x/api/notes')
+    const rejected = expect(pending).rejects.toThrow(/Phiên đăng nhập đã thay đổi/)
+
+    setToken('tok-moi')
+    respond({ ok: status === 200, status, headers: { get: () => 'application/json' }, json: async () => ({ notes: [] }) })
+
+    await rejected
+    expect(getToken()).toBe('tok-moi')
+  })
+
+  it('bỏ body phiên cũ nếu đổi tài khoản trong lúc đọc JSON', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, headers: { get: () => 'application/json' },
+      json: async () => { setToken('tok-moi'); return { notes: [] } }
+    }))
+    await expect(request('http://x/api/notes')).rejects.toThrow(/Phiên đăng nhập đã thay đổi/)
+    expect(getToken()).toBe('tok-moi')
+  })
+})
