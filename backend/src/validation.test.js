@@ -6,6 +6,7 @@ function baseNote(overrides = {}) {
   return {
     id: 1, serverId: 'abc-123', title: 'Việc cần làm', content: 'nội dung',
     tag: 'chung', done: false, deleted: 0, updatedAt: 1000, kind: 'task',
+    status: overrides.kind === 'note' ? null : overrides.done ? 'done' : 'todo',
     createdAt: 900, startAt: null, dueAt: null, completedAt: null, deletedAt: null, baseVersion: null,
     ...overrides
   }
@@ -23,6 +24,22 @@ test('validTime chấp nhận null và số nguyên an toàn trong khoảng hợ
 
 test('validNote chấp nhận note hợp lệ tối thiểu', () => {
   assert.equal(validNote(baseNote()), true)
+})
+
+test('validNote v4 yêu cầu status nhất quán với kind và done', () => {
+  for (const status of ['todo', 'doing']) {
+    assert.equal(validNote(baseNote({ status })), true)
+    assert.equal(validNote(baseNote({ status, done: true })), false)
+  }
+  assert.equal(validNote(baseNote({ status: 'done', done: true })), true)
+  assert.equal(validNote(baseNote({ status: 'done', done: false })), false)
+  for (const status of [undefined, null, '', 'invalid', 1]) {
+    assert.equal(validNote(baseNote({ status })), false)
+  }
+  assert.equal(validNote(baseNote({ kind: 'note', status: null })), true)
+  for (const status of [undefined, 'todo', 'doing', 'done']) {
+    assert.equal(validNote(baseNote({ kind: 'note', status })), false)
+  }
 })
 
 test('validNote từ chối id không phải số nguyên dương', () => {
