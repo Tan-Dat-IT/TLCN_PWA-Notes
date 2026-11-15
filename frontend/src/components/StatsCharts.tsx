@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import type { Note } from '../db/database'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from 'recharts'
-import { buildStatsSeries, buildTaskStatusReport, buildWorkspaceSummary, buildTagDistribution, groupTagDistribution, type StatsContentType, type StatsRange } from '../lib/stats'
+import { buildStatsSeries, buildTaskStatusReport, buildWorkspaceSummary, buildTagDistribution, groupTagDistribution, formatStatsRange, getStatsPresetRange, getStatsRangeBounds, getStatsRangeUnit, type StatsContentType, type StatsPreset, type StatsRange } from '../lib/stats'
 
 const COLORS = Array.from({ length: 8 }, (_, index) => 'var(--chart-' + (index + 1) + ')')
 const TYPE_LABELS: Record<StatsContentType, string> = { all: 'Tất cả', note: 'Ghi chú', task: 'Công việc' }
@@ -10,9 +10,24 @@ interface Props { notes: Note[]; now?: number }
 
 export default function StatsCharts({ notes, now = Date.now() }: Props) {
   const [contentType, setContentType] = useState<StatsContentType>('all')
-  const [range, setRange] = useState<StatsRange>('days14')
-  const periodLabel = range === 'days14' ? '14 ngày gần nhất' : '6 tháng gần nhất'
-  const unitLabel = range === 'days14' ? 'ngày' : 'tháng'
+  const [range, setRange] = useState<StatsRange>(() => getStatsPresetRange('week', now))
+  const [dateInputs, setDateInputs] = useState(range)
+  const rangeId = useId()
+  const rangeError = !dateInputs.startDate || !dateInputs.endDate
+    ? 'Chọn đủ ngày bắt đầu và kết thúc.'
+    : !getStatsRangeBounds(dateInputs) ? 'Ngày kết thúc phải bằng hoặc sau ngày bắt đầu.' : ''
+  const periodLabel = formatStatsRange(range)
+  const unitLabel = getStatsRangeUnit(range) === 'day' ? 'ngày' : 'tháng'
+  function changeDate(field: keyof StatsRange, value: string) {
+    const next = { ...dateInputs, [field]: value }
+    setDateInputs(next)
+    if (getStatsRangeBounds(next)) setRange(next)
+  }
+  function selectPreset(preset: StatsPreset) {
+    const next = getStatsPresetRange(preset, now)
+    setDateInputs(next)
+    setRange(next)
+  }
   const contentNoun = contentType === 'all' ? 'nội dung' : TYPE_LABELS[contentType].toLocaleLowerCase('vi')
   const series = useMemo(() => buildStatsSeries(notes, range, now, contentType), [notes, range, now, contentType])
   const taskStatus = useMemo(() => buildTaskStatusReport(notes, now), [notes, now])
@@ -36,13 +51,13 @@ export default function StatsCharts({ notes, now = Date.now() }: Props) {
     { label: 'Đã hoàn thành', value: doneTasks }
   ] : contentType === 'note' ? [
     { label: 'Tổng ghi chú', value: summary.noteCount },
-    { label: `Tạo trong ${periodLabel}`, value: series.created },
+    { label: 'Tạo trong khoảng đã chọn', value: series.created },
     { label: 'Số tag', value: tagDistribution.length },
     { label: 'Chờ đồng bộ', value: summary.pendingNoteCount }
   ] : [
     { label: 'Đang thực hiện', value: taskStatus.inProgress },
     { label: 'Đang quá hạn', value: taskStatus.openOverdue },
-    { label: 'Hoàn thành không trễ', value: taskStatus.completedOnTime },
+    { label: 'Hoàn thành đúng hạn', value: taskStatus.completedOnTime },
     { label: 'Hoàn thành trễ', value: taskStatus.completedLate }
   ]
 
@@ -63,12 +78,23 @@ export default function StatsCharts({ notes, now = Date.now() }: Props) {
         </div>
       </div>
 
-      <div className="stats-range-panel">
-        <div><strong>Khoảng thời gian biểu đồ</strong></div>
-        <div className="stats-range-options" role="group" aria-label="Khoảng thời gian thống kê">
-          <button type="button" className={range === 'days14' ? 'active' : ''} aria-pressed={range === 'days14'} onClick={() => setRange('days14')}>14 ngày</button>
-          <button type="button" className={range === 'months6' ? 'active' : ''} aria-pressed={range === 'months6'} onClick={() => setRange('months6')}>6 tháng</button>
+      <div className="stats-range-panel" role="group" aria-labelledby={rangeId}>
+        <strong id={rangeId}>Thời gian</strong>
+        <div className="stats-date-controls">
+          <div className="stats-date-inputs">
+            <label><span>Từ ngày</span><input type="date" value={dateInputs.startDate} onChange={event => changeDate('startDate', event.target.value)} aria-invalid={Boolean(rangeError)} aria-describedby={rangeError ? `${rangeId}-error` : undefined} /></label>
+            <span className="stats-date-separator" aria-hidden="true">→</span>
+            <label><span>Đến ngày</span><input type="date" value={dateInputs.endDate} onChange={event => changeDate('endDate', event.target.value)} aria-invalid={Boolean(rangeError)} aria-describedby={rangeError ? `${rangeId}-error` : undefined} /></label>
+          </div>
+          <div className="stats-range-options" role="group" aria-label="Chọn nhanh thời gian">
+            {([{ preset: 'week', label: '7 ngày' }, { preset: 'month', label: '1 tháng' }] as const).map(({ preset, label }) => {
+              const value = getStatsPresetRange(preset, now)
+              const active = dateInputs.startDate === value.startDate && dateInputs.endDate === value.endDate
+              return <button key={preset} type="button" className={active ? 'active' : ''} aria-pressed={active} onClick={() => selectPreset(preset)}>{label}</button>
+            })}
+          </div>
         </div>
+        {rangeError && <p className="stats-range-error" id={`${rangeId}-error`} role="alert">{rangeError} Biểu đồ giữ khoảng hợp lệ gần nhất.</p>}
       </div>
       </div>
 

@@ -67,7 +67,6 @@ export default function NoteForm({ onAdd, initial, onCancel, heading, submitLabe
         aria-label="Nội dung" maxLength={100000} disabled={saving}
         value={content}
         onChange={e => setContent(e.target.value)}
-        placeholder={'Ví dụ: Viết **chữ in đậm**, *chữ in nghiêng*.\n- [ ] Việc chưa xong\n- [x] Việc đã xong'}
         rows={3}
       /></label>
       <div className="editor-tag-field"><label className="editor-field">Tag<input aria-label="Tag" maxLength={100} disabled={saving} value={tag} onChange={e => setTag(e.target.value)} placeholder="Nhập hoặc chọn tag đã dùng" /></label>

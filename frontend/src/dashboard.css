@@ -89,6 +89,23 @@
 .stats-report :is(.stats-type-options,.stats-range-options) { display:flex; gap:4px; }
 .stats-report :is(.stats-type-options,.stats-range-options) button { min-height:34px; padding:7px 12px; color:var(--color-muted); background:transparent; border:1px solid transparent; font-size:12px; white-space:nowrap; flex:0 0 auto; }
 .stats-report :is(.stats-type-options,.stats-range-options) button.active { color:var(--color-accent); background:var(--color-accent-soft); border-color:var(--color-border); }
+.stats-controls { align-items:flex-end; }
+.stats-report .stats-range-panel { min-width:0; max-width:100%; }
+.stats-date-controls { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; max-width:100%; }
+.stats-date-inputs { display:flex; align-items:flex-end; gap:10px; min-width:0; }
+.stats-date-inputs label { display:grid; gap:5px; min-width:0; }
+.stats-report .stats-date-inputs label span { font-size:11px; }
+.stats-date-inputs input { box-sizing:border-box; width:154px; min-width:0; min-height:42px; padding:8px 10px; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); font:inherit; font-size:12px; color-scheme:light; }
+.stats-date-separator { align-self:flex-end; padding-bottom:12px; color:var(--color-muted); }
+.stats-date-inputs input:focus-visible, .stats-range-options button:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+.stats-date-inputs input[aria-invalid="true"] { border-color:var(--color-danger); }
+.stats-range-error { margin:0; max-width:520px; color:var(--color-danger); font-size:12px; line-height:1.6; }
+[data-theme="dark"] .stats-date-inputs input { color-scheme:dark; }
+@media (max-width:600px) {
+  .stats-report .stats-range-panel, .stats-date-controls, .stats-date-inputs { width:100%; }
+  .stats-date-inputs label { flex:1; }
+  .stats-date-inputs input { width:100%; }
+}
 .stats-report .stats-summary { grid-column:1/-1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin:0; padding:4px 0 20px; border-bottom:1px solid var(--color-border); gap:20px; }
 .stats-report .stats-summary>div { display:flex; flex-direction:column; gap:7px; margin:0; padding:0; border:0; background:transparent; border-radius:0; }
 .stats-report .stats-summary span { font-size:11px; color:var(--color-muted); }
