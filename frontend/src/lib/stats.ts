@@ -1,8 +1,58 @@
 import type { Note } from '../db/database'
 import { getTaskStatus, isCompletedLate, isOverdue } from '../db/noteFields'
 
-export type StatsRange = 'days14' | 'months6'
+export interface StatsRange { startDate: string; endDate: string }
+export type StatsPreset = 'week' | 'month'
 export type StatsContentType = 'all' | 'note' | 'task'
+
+function dateValue(date: Date) {
+  return `${date.getFullYear().toString().padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function parseDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(0)
+  date.setFullYear(year, month - 1, day)
+  date.setHours(0, 0, 0, 0)
+  return year >= 1 && dateValue(date) === value ? date : null
+}
+
+export function getStatsRangeBounds(range: StatsRange) {
+  const start = parseDate(range.startDate)
+  const end = parseDate(range.endDate)
+  if (!start || !end || start > end) return null
+  const endExclusive = new Date(end)
+  endExclusive.setDate(endExclusive.getDate() + 1)
+  return { start, end, endExclusive }
+}
+
+export function getStatsPresetRange(preset: StatsPreset, now: number): StatsRange {
+  const end = new Date(now)
+  const start = new Date(end)
+  if (preset === 'week') start.setDate(start.getDate() - 6)
+  else {
+    const lastDay = new Date(end.getFullYear(), end.getMonth(), 0).getDate()
+    start.setDate(1)
+    start.setMonth(start.getMonth() - 1)
+    start.setDate(Math.min(end.getDate(), lastDay))
+  }
+  return { startDate: dateValue(start), endDate: dateValue(end) }
+}
+
+export function getStatsRangeUnit(range: StatsRange): 'day' | 'month' {
+  const bounds = getStatsRangeBounds(range)
+  if (!bounds) return 'day'
+  // UTC chỉ dùng để đếm số ngày lịch, không bị lệch ở ngày đổi giờ mùa hè.
+  const calendarDay = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  return calendarDay(bounds.end) - calendarDay(bounds.start) < 62 * 86400000 ? 'day' : 'month'
+}
+
+export function formatStatsRange(range: StatsRange) {
+  const bounds = getStatsRangeBounds(range)
+  const format = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return bounds ? `${format.format(bounds.start)} – ${format.format(bounds.end)}` : ''
+}
 
 export interface StatsBucket {
   key: string
@@ -96,18 +146,17 @@ function monthKey(timestamp: number) {
   return `${date.getFullYear()}-${date.getMonth()}`
 }
 
-function makeBuckets(range: StatsRange, now: number): StatsBucket[] {
-  const reference = new Date(now)
+function makeBuckets(range: StatsRange): StatsBucket[] {
+  const bounds = getStatsRangeBounds(range)
+  if (!bounds) return []
+  const unit = getStatsRangeUnit(range)
   const buckets: StatsBucket[] = []
-  const count = range === 'days14' ? 14 : 6
-
-  for (let offset = count - 1; offset >= 0; offset--) {
-    const date = range === 'days14'
-      ? new Date(reference.getFullYear(), reference.getMonth(), reference.getDate() - offset)
-      : new Date(reference.getFullYear(), reference.getMonth() - offset, 1)
+  const date = new Date(bounds.start)
+  if (unit === 'month') date.setDate(1)
+  while (date <= bounds.end) {
     buckets.push({
-      key: range === 'days14' ? dayKey(date.getTime()) : monthKey(date.getTime()),
-      label: range === 'days14'
+      key: unit === 'day' ? dayKey(date.getTime()) : monthKey(date.getTime()),
+      label: unit === 'day'
         ? `${date.getDate()}/${date.getMonth() + 1}`
         : `${date.getMonth() + 1}/${date.getFullYear()}`,
       completed: 0,
@@ -116,6 +165,8 @@ function makeBuckets(range: StatsRange, now: number): StatsBucket[] {
       notesCreated: 0,
       tasksCreated: 0
     })
+    if (unit === 'day') date.setDate(date.getDate() + 1)
+    else date.setMonth(date.getMonth() + 1)
   }
   return buckets
 }
@@ -158,18 +209,30 @@ export function buildTaskStatusReport(notes: Note[], now = Date.now()): TaskStat
 }
 
 /**
- * Chuỗi 14 ngày (mỗi cột là một ngày) hoặc 6 tháng (mỗi cột là một tháng).
+ * Khoảng ngày tùy chọn, gồm cả ngày đầu và ngày cuối theo giờ địa phương.
+ * Khoảng dài hơn 62 ngày được nhóm theo tháng; vẫn lọc đúng hai biên ngày.
  * Việc hoàn thành được xếp theo completedAt; hai nhóm quá hạn theo dueAt.
  */
-export function buildStatsSeries(notes: Note[], range: StatsRange, now = Date.now(), contentType: StatsContentType = 'all'): StatsSeries {
-  const buckets = makeBuckets(range, now)
+export function buildStatsSeries(notes: Note[], range: StatsRange | 'days14' | 'months6', now = Date.now(), contentType: StatsContentType = 'all'): StatsSeries {
+  // Dashboard vẫn dùng chuỗi 14 ngày cố định; giữ nguyên các caller hiện có.
+  let dates: StatsRange
+  if (typeof range === 'string') {
+    const end = new Date(now)
+    const start = range === 'days14'
+      ? new Date(end.getFullYear(), end.getMonth(), end.getDate() - 13)
+      : new Date(end.getFullYear(), end.getMonth() - 5, 1)
+    dates = { startDate: dateValue(start), endDate: dateValue(end) }
+  } else dates = range
+  const buckets = makeBuckets(dates)
+  const bounds = getStatsRangeBounds(dates)
   const index = new Map(buckets.map((bucket, position) => [bucket.key, position]))
-  const keyOf = range === 'days14' ? dayKey : monthKey
+  const keyOf = getStatsRangeUnit(dates) === 'day' ? dayKey : monthKey
+  const inRange = (time: number) => bounds !== null && time >= bounds.start.getTime() && time < bounds.endExclusive.getTime()
 
   for (const note of notes) {
     if (note.deleted === 1 || (contentType !== 'all' && note.kind !== contentType)) continue
 
-    if (note.createdAt !== null && note.createdAt <= now) {
+    if (note.createdAt !== null && note.createdAt <= now && inRange(note.createdAt)) {
       const createdIndex = index.get(keyOf(note.createdAt))
       if (createdIndex !== undefined) {
         if (note.kind === 'note') buckets[createdIndex].notesCreated++
@@ -179,12 +242,12 @@ export function buildStatsSeries(notes: Note[], range: StatsRange, now = Date.no
 
     if (note.kind !== 'task') continue
 
-    if (getTaskStatus(note) === 'done' && note.completedAt !== null && note.completedAt <= now) {
+    if (getTaskStatus(note) === 'done' && note.completedAt !== null && note.completedAt <= now && inRange(note.completedAt)) {
       const completedIndex = index.get(keyOf(note.completedAt))
       if (completedIndex !== undefined) buckets[completedIndex].completed++
     }
 
-    if (note.dueAt === null) continue
+    if (note.dueAt === null || !inRange(note.dueAt)) continue
     const completedLate = isCompletedLate(note)
     const isOpenOverdue = getTaskStatus(note) !== 'done' && note.dueAt < now
     if (!completedLate && !isOpenOverdue) continue

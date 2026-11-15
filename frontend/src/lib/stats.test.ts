@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Note } from '../db/database'
-import { buildOverdueReport, buildStatsSeries, buildTaskStatusReport, buildWorkspaceSummary, matchesDeadline, buildTagDistribution, groupTagDistribution } from './stats'
+import { buildOverdueReport, buildStatsSeries, buildTaskStatusReport, buildWorkspaceSummary, matchesDeadline, buildTagDistribution, groupTagDistribution, getStatsPresetRange, getStatsRangeBounds } from './stats'
 
 const now = new Date(2026, 8, 30, 12).getTime()
 
@@ -11,6 +11,43 @@ function task(changes: Partial<Note> = {}): Note {
     synced: 1, deleted: 0, ...changes
   }
 }
+
+describe('custom statistics dates', () => {
+  it('includes seven calendar days and clamps the previous month at month end', () => {
+    expect(getStatsPresetRange('week', now)).toEqual({ startDate: '2026-09-24', endDate: '2026-09-30' })
+    expect(getStatsPresetRange('month', new Date(2026, 2, 31).getTime())).toEqual({ startDate: '2026-02-28', endDate: '2026-03-31' })
+    expect(getStatsPresetRange('month', new Date(2024, 2, 31).getTime())).toEqual({ startDate: '2024-02-29', endDate: '2024-03-31' })
+  })
+  it('rejects empty, impossible and reversed dates', () => {
+    for (const range of [
+      { startDate: '', endDate: '2026-09-30' },
+      { startDate: '2026-02-30', endDate: '2026-09-30' },
+      { startDate: '2026-10-01', endDate: '2026-09-30' }
+    ]) {
+      expect(getStatsRangeBounds(range)).toBeNull()
+      expect(buildStatsSeries([task()], range, now).created).toBe(0)
+    }
+  })
+  it('includes both boundary days and uses each event date rather than only the creation date', () => {
+    const start = new Date(2026, 8, 27).getTime()
+    const end = new Date(2026, 8, 29, 23, 59, 59, 999).getTime()
+    const notes = [task({ createdAt: start }), task({ createdAt: end }), task({ createdAt: start - 1 }),
+      task({ createdAt: end + 1 }), task({ createdAt: start - 1, done: true, completedAt: end, dueAt: start })]
+    const series = buildStatsSeries(notes, { startDate: '2026-09-27', endDate: '2026-09-29' }, now)
+    expect(series).toMatchObject({ created: 2, completed: 1, completedLate: 1 })
+    expect(series.buckets).toHaveLength(3)
+    expect(series.buckets[0].tasksCreated).toBe(1)
+    expect(series.buckets[2].completed).toBe(1)
+  })
+  it('clips partial months at the exact dates when grouping a long range', () => {
+    const notes = ['2026-04-14', '2026-04-15', '2026-07-20', '2026-07-21'].map(date => task({ createdAt: new Date(`${date}T12:00:00`).getTime() }))
+    const series = buildStatsSeries(notes, { startDate: '2026-04-15', endDate: '2026-07-20' }, now)
+    expect(series.buckets).toHaveLength(4)
+    expect(series.created).toBe(2)
+    expect(series.buckets[0].tasksCreated).toBe(1)
+    expect(series.buckets[3].tasksCreated).toBe(1)
+  })
+})
 
 describe('shared workspace metrics', () => {
   it('uses workflow status, excludes deleted content and includes pending deletions without counting conflicts twice', () => {
