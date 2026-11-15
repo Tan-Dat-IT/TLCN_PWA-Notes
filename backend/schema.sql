@@ -43,6 +43,7 @@ CREATE TABLE Notes (
     UpdatedAt   BIGINT NOT NULL,      -- mốc client để hiển thị/sắp xếp; Version mới dùng phát hiện xung đột
     Deleted     BIT NOT NULL DEFAULT 0,
     Kind        NVARCHAR(10) NOT NULL CONSTRAINT DF_Notes_Kind DEFAULT N'task',
+    Status      NVARCHAR(10) NULL,
     CreatedAt   BIGINT NULL,
     StartAt     BIGINT NULL,
     DueAt       BIGINT NULL,
@@ -51,6 +52,12 @@ CREATE TABLE Notes (
     Version     INT NOT NULL CONSTRAINT DF_Notes_Version DEFAULT 1, -- server tự tăng mỗi lần ghi; client gửi baseVersion để phát hiện xung đột
     RowVer      ROWVERSION NOT NULL,                                -- SQL Server tự tăng mỗi lần INSERT/UPDATE; con trỏ cho đồng bộ delta
     CONSTRAINT CK_Notes_Version CHECK (Version >= 1),
+    CONSTRAINT CK_Notes_TaskStatus CHECK (
+      (Kind = N'note' AND Status IS NULL AND Done = 0)
+      OR (Kind = N'task' AND Status IS NOT NULL AND (
+        (Status IN (N'todo', N'doing') AND Done = 0) OR (Status = N'done' AND Done = 1)
+      ))
+    ),
     CONSTRAINT CK_Notes_Schedule CHECK (
       Kind IN (N'note', N'task') AND (Kind = N'task' OR Done = 0)
       AND (StartAt IS NULL OR DueAt IS NULL OR DueAt >= StartAt)

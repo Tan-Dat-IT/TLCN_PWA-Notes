@@ -44,7 +44,7 @@ export function getPool() {
 function mapNote(n) {
   return {
     serverId: n.ServerId, title: n.Title, content: n.Content || '',
-    kind: n.Kind, createdAt: n.CreatedAt === null ? null : Number(n.CreatedAt),
+    kind: n.Kind, status: n.Status, createdAt: n.CreatedAt === null ? null : Number(n.CreatedAt),
     startAt: n.StartAt === null ? null : Number(n.StartAt), dueAt: n.DueAt === null ? null : Number(n.DueAt),
     completedAt: n.CompletedAt === null ? null : Number(n.CompletedAt), deletedAt: n.DeletedAt === null ? null : Number(n.DeletedAt),
     tag: n.Tag || 'chung', done: Boolean(n.Done),
@@ -52,7 +52,7 @@ function mapNote(n) {
   }
 }
 
-const NOTE_COLUMNS = 'ServerId, Title, Content, Kind, CreatedAt, StartAt, DueAt, CompletedAt, DeletedAt, Tag, Done, UpdatedAt, Deleted, Version'
+const NOTE_COLUMNS = 'ServerId, Title, Content, Kind, Status, CreatedAt, StartAt, DueAt, CompletedAt, DeletedAt, Tag, Done, UpdatedAt, Deleted, Version'
 
 // Toàn bộ ghi chú của 1 user - dùng cho trang quản trị (xem chỉ đọc).
 export async function getAllNotes(userId) {
@@ -240,6 +240,7 @@ export async function upsertNote(incoming, userId) {
     .input('UpdatedAt', sql.BigInt, incoming.updatedAt)
     .input('Deleted', sql.Bit, incoming.deleted ? 1 : 0)
     .input('Kind', sql.NVarChar(10), incoming.kind)
+    .input('TaskStatus', sql.NVarChar(10), incoming.status)
     .input('CreatedAt', sql.BigInt, incoming.createdAt)
     .input('StartAt', sql.BigInt, incoming.startAt)
     .input('DueAt', sql.BigInt, incoming.dueAt)
@@ -254,8 +255,8 @@ export async function upsertNote(incoming, userId) {
 
       IF @CurUser IS NULL
       BEGIN
-        INSERT INTO Notes (ServerId, UserId, Title, Content, Tag, Done, UpdatedAt, Deleted, Kind, CreatedAt, StartAt, DueAt, CompletedAt, DeletedAt, Version)
-        VALUES (@ServerId, @UserId, @Title, @Content, @Tag, @Done, @UpdatedAt, @Deleted, @Kind, @CreatedAt, @StartAt, @DueAt, @CompletedAt, @DeletedAt, 1);
+        INSERT INTO Notes (ServerId, UserId, Title, Content, Tag, Done, UpdatedAt, Deleted, Kind, Status, CreatedAt, StartAt, DueAt, CompletedAt, DeletedAt, Version)
+        VALUES (@ServerId, @UserId, @Title, @Content, @Tag, @Done, @UpdatedAt, @Deleted, @Kind, @TaskStatus, @CreatedAt, @StartAt, @DueAt, @CompletedAt, @DeletedAt, 1);
         SELECT @Status = N'applied', @NewVersion = 1;
       END
       ELSE IF @CurUser <> @UserId
@@ -264,7 +265,7 @@ export async function upsertNote(incoming, userId) {
       BEGIN
         UPDATE Notes SET Title=@Title, Content=@Content, Tag=@Tag,
                Done=@Done, UpdatedAt=@UpdatedAt, Deleted=@Deleted,
-               Kind=@Kind, CreatedAt=COALESCE(CreatedAt, @CreatedAt),
+               Kind=@Kind, Status=@TaskStatus, CreatedAt=COALESCE(CreatedAt, @CreatedAt),
                StartAt=@StartAt, DueAt=@DueAt, CompletedAt=@CompletedAt, DeletedAt=@DeletedAt,
                Version = Version + 1
         WHERE ServerId = @ServerId;
@@ -276,6 +277,7 @@ export async function upsertNote(incoming, userId) {
           AND CONVERT(VARBINARY(MAX), ISNULL(Content, N'')) = CONVERT(VARBINARY(MAX), @Content)
           AND CONVERT(VARBINARY(MAX), ISNULL(Tag, N'chung')) = CONVERT(VARBINARY(MAX), @Tag)
           AND Done = @Done AND Deleted = @Deleted AND Kind = @Kind
+          AND (Status = @TaskStatus OR (Status IS NULL AND @TaskStatus IS NULL))
           AND (StartAt = @StartAt OR (StartAt IS NULL AND @StartAt IS NULL))
           AND (DueAt = @DueAt OR (DueAt IS NULL AND @DueAt IS NULL))
           AND (CompletedAt = @CompletedAt OR (CompletedAt IS NULL AND @CompletedAt IS NULL))
@@ -404,7 +406,7 @@ export async function releaseReminder(serverId, dueAt) {
 
 export async function checkDatabase() {
   const pool = await getPool()
-  await pool.request().query('SELECT TOP (0) ServerId, UserId, Kind, CreatedAt, StartAt, DueAt, CompletedAt, DeletedAt, Version, RowVer FROM dbo.Notes')
+  await pool.request().query('SELECT TOP (0) ServerId, UserId, Kind, Status, CreatedAt, StartAt, DueAt, CompletedAt, DeletedAt, Version, RowVer FROM dbo.Notes')
   await pool.request().query('SELECT TOP (0) Id, Username, PasswordHash, Email, ResetTokenHash, ResetTokenExpiresAt, Role, ManagedByAdminId, Disabled, ReminderLeadMinutes, FailedLoginCount, LastFailedLoginAt, LoginLockedUntil FROM dbo.Users')
   await pool.request().query('SELECT TOP (0) Id, UserId, Endpoint, P256dh, Auth, CreatedAt FROM dbo.PushSubscriptions')
   await pool.request().query('SELECT TOP (0) ServerId, DueAt, SentAt FROM dbo.NoteReminders')

@@ -13,6 +13,9 @@ export function validNote(n) {
     typeof n.done === 'boolean' && (n.deleted === 0 || n.deleted === 1) &&
     Number.isSafeInteger(n.updatedAt) && n.updatedAt >= 0 && n.updatedAt <= 8640000000000000 &&
     (n.kind === 'note' || n.kind === 'task') &&
+    (n.kind === 'task'
+      ? ['todo', 'doing', 'done'].includes(n.status) && n.done === (n.status === 'done')
+      : n.status === null && !n.done) &&
     // Phiên bản server mà bản sửa này dựa vào; null = ghi chú mới chưa từng lên server.
     (n.baseVersion === null || (Number.isSafeInteger(n.baseVersion) && n.baseVersion >= 1 && n.baseVersion <= 2147483647)) &&
     [n.createdAt, n.startAt, n.dueAt, n.completedAt, n.deletedAt].every(validTime) &&
