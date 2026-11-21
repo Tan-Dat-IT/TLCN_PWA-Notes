@@ -122,7 +122,7 @@ describe('PlanningAssistant', () => {
     expect(screen.getByText(/Bạn đã thay đổi lựa chọn/)).toBeTruthy()
   })
 
-  it('restores the latest saved plan and custom options offline after remounting without another AI call', async () => {
+  it('restores the saved plan and custom options offline after reopening IndexedDB without another AI call', async () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...response, dailyCapacityMinutes: 135, horizonDays: 5 }) })
     vi.stubGlobal('fetch', fetch)
     const first = render(<PlanningAssistant accountKey="planner-test" />)
@@ -136,6 +136,8 @@ describe('PlanningAssistant', () => {
     await screen.findByText('Đã lưu trên thiết bị này')
     expect(await db.notes.count()).toBe(0)
     first.unmount()
+    db.close()
+    await db.open()
 
     render(<PlanningAssistant accountKey="planner-test" isOnline={false} />)
     await screen.findByRole('region', { name: 'Lịch đề xuất' })
