@@ -249,4 +249,59 @@ describe('ReminderDialog', () => {
     await waitFor(() => expect(calls.some(c => c.method === 'PUT' && (c.body as { leadMinutes: number }).leadMinutes === 60)).toBe(true))
     await waitFor(() => expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('60'))
   })
+
+  it('tải lỗi có thể thử lại ngay trong hộp thoại và xóa lỗi cũ', async () => {
+    let failed = true
+    mockApi(() => failed ? { status: 503, body: { error: 'Máy chủ tạm gián đoạn.' } } : { body: configBody() })
+    openDialog()
+    expect((await screen.findByRole('alert')).textContent).toContain('tạm gián đoạn')
+    failed = false
+    fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại' }))
+    await screen.findByRole('button', { name: 'Bật trên thiết bị này' })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('không báo đang bật và không gửi thử khi trình duyệt đã chặn thông báo', async () => {
+    browser.subscription = new FakeSubscription(ENDPOINT, PUBLIC_KEY)
+    browser.permission = 'denied'
+    mockApi(() => ({ body: configBody({ subscribed: true }) }))
+    openDialog()
+    await screen.findByText('đang bị chặn thông báo')
+    expect(screen.queryByText('đang bật nhắc việc')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Gửi thử' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Tắt trên thiết bị này' })).toBeTruthy()
+  })
+
+  it('khóa VAPID đã đổi thì cho bật lại thay vì báo đang bật', async () => {
+    browser.subscription = new FakeSubscription(ENDPOINT, PUBLIC_KEY.replace('B', 'C'))
+    browser.permission = 'granted'
+    mockApi(() => ({ body: configBody({ subscribed: true }) }))
+    openDialog()
+    await screen.findByRole('button', { name: 'Bật trên thiết bị này' })
+    expect(screen.queryByText('đang bật nhắc việc')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Gửi thử' })).toBeNull()
+  })
+
+  it('lưu xong nhưng tải lại lỗi thì không đồng thời hiện thông báo thành công', async () => {
+    let saved = false
+    mockApi(call => {
+      if (call.method === 'PUT') { saved = true; return { body: { ok: true } } }
+      return saved ? { status: 503, body: { error: 'Không tải lại được cài đặt.' } } : { body: configBody() }
+    })
+    openDialog()
+    fireEvent.change(await screen.findByRole('combobox'), { target: { value: '60' } })
+    await screen.findByRole('alert')
+    expect(screen.queryByText('Đã lưu thời điểm nhắc.')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Thử tải lại' })).toBeTruthy()
+  })
+
+  it('gửi thử thất bại không hiện xác nhận đã gửi', async () => {
+    browser.subscription = new FakeSubscription(ENDPOINT, PUBLIC_KEY)
+    browser.permission = 'granted'
+    mockApi(call => ({ body: call.url.includes('/push/test') ? { sent: 0, failed: 1, total: 1 } : configBody({ subscribed: true }) }))
+    openDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi thử' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('Chưa gửi được')
+    expect(screen.queryByText(/Đã gửi thông báo thử/)).toBeNull()
+  })
 })
