@@ -45,7 +45,7 @@ export default function LoginForm() {
         </p>
         {mode === 'forgot' ? (
           <label>Email đã đăng ký
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required maxLength={255}
+            <input type="email" value={email} onChange={e => { setEmail(e.target.value); setForgotMessage(''); setError('') }} required maxLength={255}
               autoComplete="email" disabled={saving} placeholder="vd: ban@vidu.com" />
           </label>
         ) : (
